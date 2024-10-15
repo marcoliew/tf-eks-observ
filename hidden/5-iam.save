@@ -1,0 +1,381 @@
+resource "aws_iam_role" "eks_admin" {
+  name = "${local.env}-${local.eks_name}-eks-admin"
+
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "AWS": "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+      }
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_policy" "eks_admin" {
+  name = "AmazonEKSAdminPolicy"
+
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "eks:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "eks.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "eks_admin" {
+  role       = aws_iam_role.eks_admin.name
+  policy_arn = aws_iam_policy.eks_admin.arn
+}
+
+# Best practice: use IAM roles due to temporary credentials
+resource "aws_eks_access_entry" "eks_admin" {
+  cluster_name      = aws_eks_cluster.eks.name
+  principal_arn     = aws_iam_role.eks_admin.arn
+  kubernetes_groups = ["eks-full-admin"]
+}
+
+# data "aws_iam_role" "sso_admin" {
+#   name = "AWSReservedSSO_SSO_AdministratorAccess_454c684d53642f48"
+# }
+
+# resource "aws_eks_access_entry" "sso_admin" {
+#   cluster_name      = aws_eks_cluster.eks.name
+#   principal_arn     = data.aws_iam_role.sso_admin.arn
+#   #kubernetes_groups = ["eks-sso-admin"]
+# }
+
+# -------------console access roles
+resource "aws_iam_role" "eks_console_viewer" {
+  name = "${local.env}-${local.eks_name}-eks-console-viewer"
+
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "AWS": "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+      }
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_policy" "eks_console_viewer" {
+  name = "AmazonEKSConsoleViewerPolicy"
+
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "eks:ListFargateProfiles",
+                "eks:DescribeNodegroup",
+                "eks:ListNodegroups",
+                "eks:ListUpdates",
+                "eks:AccessKubernetesApi",
+                "eks:ListAddons",
+                "eks:DescribeCluster",
+                "eks:DescribeAddonVersions",
+                "eks:ListClusters",
+                "eks:ListIdentityProviderConfigs",
+                "iam:ListRoles"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "ssm:GetParameter",
+            "Resource": "arn:aws:ssm:*:058264095432:parameter/*"
+        }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "eks_console_viewer" {
+  role       = aws_iam_role.eks_console_viewer.name
+  policy_arn = aws_iam_policy.eks_console_viewer.arn
+}
+
+# resource "aws_iam_user" "manager" {
+#   name = "manager"
+# }
+
+# resource "aws_iam_policy" "eks_assume_admin" {
+#   name = "AmazonEKSAssumeAdminPolicy"
+
+#   policy = <<POLICY
+# {
+#     "Version": "2012-10-17",
+#     "Statement": [
+#         {
+#             "Effect": "Allow",
+#             "Action": [
+#                 "sts:AssumeRole"
+#             ],
+#             "Resource": "${aws_iam_role.eks_admin.arn}"
+#         }
+#     ]
+# }
+# POLICY
+# }
+
+# resource "aws_iam_user_policy_attachment" "manager" {
+#   user       = aws_iam_user.manager.name
+#   policy_arn = aws_iam_policy.eks_assume_admin.arn
+# }
+
+# Best practice: use IAM roles due to temporary credentials
+resource "aws_eks_access_entry" "viewer" {
+  cluster_name      = aws_eks_cluster.eks.name
+  principal_arn     = aws_iam_role.eks_console_viewer.arn
+  kubernetes_groups = [""]
+  lifecycle {
+    ignore_changes = [kubernetes_groups]
+  }
+
+}
+
+resource "aws_eks_access_policy_association" "viewer" {
+  cluster_name  = aws_eks_cluster.eks.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+  principal_arn = aws_iam_role.eks_console_viewer.arn
+
+  access_scope {
+    type       = "cluster" #"namespace"
+    #namespaces = ["example-namespace"]
+  }
+}
+
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy                         |  AmazonEKSAdminPolicy                          ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminViewPolicy                     |  AmazonEKSAdminViewPolicy                      ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy                  |  AmazonEKSClusterAdminPolicy                   ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy                          |  AmazonEKSEditPolicy                           ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy                          |  AmazonEKSViewPolicy                           ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodClusterPolicy         |  AmazonSagemakerHyperpodClusterPolicy          ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy                          |  AmazonEKSEditPolicy                           ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy                          |  AmazonEKSViewPolicy                           ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodClusterPolicy         |  AmazonSagemakerHyperpodClusterPolicy          ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodControllerPolicy      |  AmazonSagemakerHyperpodControllerPolicy       ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodClusterPolicy         |  AmazonSagemakerHyperpodClusterPolicy          ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodControllerPolicy      |  AmazonSagemakerHyperpodControllerPolicy       ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodControllerPolicy      |  AmazonSagemakerHyperpodControllerPolicy       ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodSystemNamespacePolicy |  AmazonSagemakerHyperpodSystemNamespacePolicy  ||
+# arn:aws:eks::aws:cluster-access-policy/AmazonSagemakerHyperpodSystemNamespacePolicy |  AmazonSagemakerHyperpodSystemNamespacePolicy 
+
+# Role for ebs-csi addon oidc
+
+data "aws_iam_policy_document" "ebs_csi_driver" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+
+    actions = [
+      "sts:AssumeRole",
+      "sts:TagSession"
+    ]
+  }
+
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+
+    principals {
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+      type        = "Federated"
+    }
+  }  
+}
+
+resource "aws_iam_role" "ebs_csi_driver" {
+  name               = "${aws_eks_cluster.eks.name}-ebs-csi-driver"
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_driver.json
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.ebs_csi_driver.name
+}
+
+# Optional: only if you want to encrypt the EBS drives
+resource "aws_iam_policy" "ebs_csi_driver_encryption" {
+  name = "${aws_eks_cluster.eks.name}-ebs-csi-driver-encryption"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKeyWithoutPlaintext",
+          "kms:CreateGrant"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Optional: only if you want to encrypt the EBS drives
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver_encryption" {
+  policy_arn = aws_iam_policy.ebs_csi_driver_encryption.arn
+  role       = aws_iam_role.ebs_csi_driver.name
+}
+
+# resource "aws_eks_pod_identity_association" "ebs_csi_driver" {
+#   cluster_name    = aws_eks_cluster.eks.name
+#   namespace       = "kube-system"
+#   service_account = "ebs-csi-controller-sa"
+#   role_arn        = aws_iam_role.ebs_csi_driver.arn
+# }
+
+
+# Role form loki using s3
+
+# locals {
+#   tmp = replace(aws_iam_openid_connect_provider.eks.url, "https://", "")
+# }
+
+# IRSA for loki
+
+resource "aws_iam_role" "loki_oicd" {
+  name = "${local.env}-${local.eks_name}-loki-oicd-role"
+
+  assume_role_policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "${aws_iam_openid_connect_provider.eks.arn}"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub": "system:serviceaccount:loki:${local.loki_s3_irsa}"
+                }
+            }
+        }
+    ]
+}
+POLICY
+}
+
+output "arn" {
+  value = aws_iam_openid_connect_provider.eks.url
+}
+
+resource "aws_iam_policy" "loki_oicd" {
+  name = "${local.env}-${local.eks_name}-loki-s3-policy"
+
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "LokiStorage",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "${aws_s3_bucket.loki_bucket["chunks"].arn}",
+                "${aws_s3_bucket.loki_bucket["chunks"].arn}/*",
+                "${aws_s3_bucket.loki_bucket["ruler"].arn}",
+                "${aws_s3_bucket.loki_bucket["ruler"].arn}/*",
+                "${aws_s3_bucket.loki_bucket["admin"].arn}",
+                "${aws_s3_bucket.loki_bucket["admin"].arn}/*"                
+            ]
+        }
+    ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy_attachment" "loki_oicd" {
+  role       = aws_iam_role.loki_oicd.name
+  policy_arn = aws_iam_policy.loki_oicd.arn
+}
+
+
+# Getting irsa role for VPC CNI
+
+module "vpc_cni_irsa" {
+  source      = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  role_name   = "${local.env}-${local.eks_name}-irsa-role-cni"
+
+  attach_vpc_cni_policy = true
+  vpc_cni_enable_ipv4   = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = aws_iam_openid_connect_provider.eks.arn
+      namespace_service_accounts = ["kube-system:aws-node"]
+    }
+  }
+
+}
+
+module "external_dns_irsa" {
+  source      = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  role_name   = "${local.env}-${local.eks_name}-irsa-role-external-dns"
+
+  attach_external_dns_policy = true
+  external_dns_hosted_zone_arns   = [aws_route53_zone.xen_local.arn,aws_route53_zone.xen.arn]
+
+  oidc_providers = {
+    main = {
+      provider_arn               = aws_iam_openid_connect_provider.eks.arn
+      namespace_service_accounts = ["network:external-dns"]
+    }
+  }
+
+}
+

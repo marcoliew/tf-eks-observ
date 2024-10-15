@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: xen-cert
+  namespace: istio-system
+spec:
+  secretName: xen-cert-secret
+  issuerRef:
+    name: production-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  commonName: xeniumsolution.online
+  dnsNames:
+    - xeniumsolution.online

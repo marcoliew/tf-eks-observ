@@ -1,0 +1,167 @@
+# For CW example
+
+resource "aws_security_group" "server_ssh_access" {
+  name        = "server-ssh-access"
+  description = "Allow My Server SSH Accesss"
+  vpc_id      = data.aws_vpc.main.id
+
+  ingress {
+    description = "Allow SSH from Anywhere"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow Prometheus UI Access (only for demo)"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow everything"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Find Ubuntu 22 LTS AMI image in AWS
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"]
+}
+
+data "aws_subnets" "example" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.main.id]
+  }
+}
+
+data "aws_subnet" "example" {
+  id = data.aws_subnets.example.ids[0]
+}
+
+
+# Create EC2 instance with Ubuntu 22 LTS AMI image
+resource "aws_instance" "ssh_server" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      max_price = 0.0081
+    }
+  }
+
+  # create devops key pair manually before you run terraform
+  key_name = aws_key_pair.devops.key_name
+
+  subnet_id              = data.aws_subnet.example.id
+  vpc_security_group_ids = [aws_security_group.server_ssh_access.id]
+
+  associate_public_ip_address = true
+
+  iam_instance_profile = aws_iam_instance_profile.prometheus_demo.name
+
+  # user_data = <<EOF
+  #     #!/bin/bash
+  #     echo "ubuntu:ubuntu" | sudo chpasswd
+  #   EOF
+
+  # user_data = templatefile("bootstrap.sh.tpl",
+  #   {
+  #     prometheus_ver    = "2.39.1",
+  #     node_exporter_ver = "1.4.0",
+  #     remote_write_url  = aws_prometheus_workspace.demo.prometheus_endpoint
+  # })  
+
+  tags = {
+    Name = "ssh-server"
+    node-exporter = "true"
+  }
+}
+
+resource "tls_private_key" "devops" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "devops" {
+  key_name   = "devops"
+  public_key = tls_private_key.devops.public_key_openssh
+}
+
+output "private_key" {
+  value     = tls_private_key.devops.private_key_pem
+  sensitive = true
+}
+
+# Add SSM policy to ec2
+
+resource "aws_iam_role_policy_attachment" "ssm_policy" {
+  role       = aws_iam_role.prometheus_demo.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+
+# Managed Prometheus part
+
+resource "aws_iam_instance_profile" "prometheus_demo" {
+  name = "prometheus-demo"
+  role = aws_iam_role.prometheus_demo.name
+}
+
+resource "aws_iam_role" "prometheus_demo" {
+  name = "prometheus-demo"
+  path = "/"
+
+  assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Principal": {
+               "Service": "ec2.amazonaws.com"
+            },
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "prometheus_demo_ingest_access" {
+  role       = aws_iam_role.prometheus_demo.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "prometheus_ec2_access" {
+  role       = aws_iam_role.prometheus_demo.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+}
