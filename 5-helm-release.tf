@@ -1,3 +1,44 @@
+resource "helm_release" "kube-prometheus-stack" {
+  name = "ps"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  namespace  = "monitoring"
+  #version    = "62.7.0"
+  create_namespace = true
+  values = [file("${path.module}/values/kube-prometheus-stack.yaml")]
+  depends_on = [aws_eks_node_group.spot]
+}
+
+resource "helm_release" "kiali" {
+  name = "kiali"
+  repository = "https://kiali.org/helm-charts"
+  chart      = "kiali-server"
+  namespace  = "monitoring"
+  #version    = "62.7.0"
+  #values = [file("${path.module}/values/kube-prometheus-stack.yaml")]
+  set {
+    name  = "auth.strategy"
+    value = "anonymous"
+  }  
+  depends_on = [helm_release.kube-prometheus-stack]
+}
+
+
+# resource "helm_release" "external-dns" {
+#   name = "external-dns"
+#   repository       = "https://kubernetes-sigs.github.io/external-dns/"
+#   chart            = "external-dns"
+#   namespace        = "aws-network"
+#   create_namespace = true
+#   version          = "1.15.0"
+#   values = [file("${path.module}/values/external-dns.yaml")]
+#   set {
+#     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+#     value = module.external_dns_irsa.iam_role_arn 
+#   }
+#   depends_on = [aws_eks_node_group.spot]
+# }
+
 resource "helm_release" "istio_base" {
   name = "my-istio-base-release"
 
@@ -71,15 +112,15 @@ resource "helm_release" "gateway" {
     value = "nlb"  # Change to "classic" for Classic Load Balancer
   }
 
-  set {
-    name  = "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-internal"
-    value = "true" 
-  }
+  # set {
+  #   name  = "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-internal"
+  #   value = "true" 
+  # }
 
-  set {
-    name  = "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-backend-protocol"
-    value = "tcp"  # Optional: specify the backend protocol if needed
-  }
+  # set {
+  #   name  = "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-backend-protocol"
+  #   value = "tcp"  # Optional: specify the backend protocol if needed
+  # }
 
   # set {
   #   name  = "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-nlb-target-type"

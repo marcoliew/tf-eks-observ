@@ -1,8 +1,13 @@
-resource "aws_route53_zone" "xen" {
+# resource "aws_route53_zone" "xen" {
+#   name = local.domain_name
+#   # lifecycle {
+#   #   prevent_destroy = true
+#   # }  
+# }
+
+data "aws_route53_zone" "xen" {
   name = local.domain_name
-  lifecycle {
-    prevent_destroy = true
-  }  
+  #private_zone = true
 }
 
 resource "aws_route53_zone" "xen_local" {
@@ -13,7 +18,7 @@ resource "aws_route53_zone" "xen_local" {
 }
 
 resource "aws_route53_record" "alias_apex_record" {
-  zone_id = aws_route53_zone.xen.zone_id # Replace with your zone ID
+  zone_id = data.aws_route53_zone.xen.zone_id # Replace with your zone ID
   name    = local.domain_name # Replace with your name/domain/subdomain
   type    = "A"
 

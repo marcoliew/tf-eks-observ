@@ -1,7 +1,7 @@
 locals {
   env         = "dev"
   region      = "ap-southeast-2"
-  instance_type = "t3a.medium" # "t3.small"   # r7g.medium  "t3.large"
+  instance_type =  "t3.large" # "t3a.medium" # "t3.small"   # r7g.medium  "t3.large"
   desired_size = 1
   max_size     = 3
   min_size     = 0  

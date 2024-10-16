@@ -3,6 +3,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: staging
+  labels:
+    monitoring: prometheus
+    istio-injection: enabled
 ---
 apiVersion: v1
 kind: Pod
@@ -10,6 +13,7 @@ metadata:
   name: utilitypod
   namespace: staging
   labels:
+    istio: monitor
     app: utilitypod
 spec:
   containers:

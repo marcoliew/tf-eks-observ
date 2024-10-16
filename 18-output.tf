@@ -3,5 +3,9 @@
 # }
 
 output "nameservers" {
-  value = aws_route53_zone.xen.name_servers
+  value = data.aws_route53_zone.xen.name_servers
+}
+
+output "dns_zone_id" {
+  value = data.aws_route53_zone.xen.zone_id
 }

@@ -1,44 +1,45 @@
 ---
 defaultRules:   # EKS control panel is managed by AWS, no need to monitor
-  create: true
-  rules:
-    alertmanager: true
-    etcd: true
-    configReloaders: true
-    general: true
-    k8sContainerCpuUsageSecondsTotal: true
-    k8sContainerMemoryCache: true
-    k8sContainerMemoryRss: true
-    k8sContainerMemorySwap: true
-    k8sContainerResource: true
-    k8sContainerMemoryWorkingSetBytes: true
-    k8sPodOwner: true
-    kubeApiserverAvailability: true
-    kubeApiserverBurnrate: true
-    kubeApiserverHistogram: true
-    kubeApiserverSlos: true
-    kubeControllerManager: true
-    kubelet: true
-    kubeProxy: true
-    kubePrometheusGeneral: true
-    kubePrometheusNodeRecording: true
-    kubernetesApps: true
-    kubernetesResources: true
-    kubernetesStorage: true
-    kubernetesSystem: true
-    kubeSchedulerAlerting: true
-    kubeSchedulerRecording: true
-    kubeStateMetrics: true
-    network: true
-    node: true
-    nodeExporterAlerting: true
-    nodeExporterRecording: true
-    prometheus: true
-    prometheusOperator: true
-    windows: true
-commonLabels:
-  prometheus: selected
-  
+  create: false
+#   rules:
+#     alertmanager: true
+#     etcd: true
+#     configReloaders: true
+#     general: true
+#     k8sContainerCpuUsageSecondsTotal: true
+#     k8sContainerMemoryCache: true
+#     k8sContainerMemoryRss: true
+#     k8sContainerMemorySwap: true
+#     k8sContainerResource: true
+#     k8sContainerMemoryWorkingSetBytes: true
+#     k8sPodOwner: true
+#     kubeApiserverAvailability: true
+#     kubeApiserverBurnrate: true
+#     kubeApiserverHistogram: true
+#     kubeApiserverSlos: true
+#     kubeControllerManager: true
+#     kubelet: true
+#     kubeProxy: true
+#     kubePrometheusGeneral: true
+#     kubePrometheusNodeRecording: true
+#     kubernetesApps: true
+#     kubernetesResources: true
+#     kubernetesStorage: true
+#     kubernetesSystem: true
+#     kubeSchedulerAlerting: true
+#     kubeSchedulerRecording: true
+#     kubeStateMetrics: true
+#     network: true
+#     node: true
+#     nodeExporterAlerting: true
+#     nodeExporterRecording: true
+#     prometheus: true
+#     prometheusOperator: true
+#     windows: true
+# commonLabels:
+#   prometheus: selected
+nodeExporter:
+  enabled: false  
 
 grafana:
   enabled: true
@@ -85,6 +86,7 @@ grafana:
 #       - hosts:
 #           - prometheus.xeniumsolution.online
 #         secretName: prometheus-tls
+prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector:
@@ -92,9 +94,9 @@ grafana:
         prometheus: selected
 
     ## If nil, select own namespace. Namespaces to be selected for PodMonitor discovery.
-    podMonitorNamespaceSelector:
-      matchLabels:
-        monitoring: prometheus
+    # podMonitorNamespaceSelector:
+    #   matchLabels:
+    #     prometheus: selected
 
     ## Example which selects ServiceMonitors with label "prometheus" set to "somelabel"
     serviceMonitorSelector:
@@ -119,12 +121,12 @@ grafana:
     #           storage: 5Gi
 
 ## Component scraping kube state metrics
-##
+
 kubeStateMetrics:
-  enabled: true
+  enabled: false
 kube-state-metrics:
   prometheus:
     monitor:
-      enabled: true
-      additionalLabels:
-        prometheus: selected
+      enabled: false
+#       additionalLabels:
+#         prometheus: selected

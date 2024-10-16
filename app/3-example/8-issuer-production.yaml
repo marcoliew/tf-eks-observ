@@ -20,9 +20,6 @@ spec:
       - http01:
           ingress:
             class: istio
-          # route53:
-          #   region: ap-southeast-2
-          #   hostedZoneID: ${ZONE_ID}   
-        selector:
-          dnsZones:
-            - xeniumsolution.online # You MUST update this 
+        # selector:
+        #   dnsZones:
+        #     - xeniumsolution.online # You MUST update this 

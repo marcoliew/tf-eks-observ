@@ -103,3 +103,22 @@ resource "aws_eks_pod_identity_association" "aws_lbc" {
   service_account = "aws-load-balancer-controller"    # service account set at helm_release aws_lbc
   role_arn        = aws_iam_role.aws_lbc.arn
 }
+
+# provide irsa role for external dns
+
+module "external_dns_irsa" {
+  source      = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  role_name   = "${local.env}-${local.eks_name}-irsa-role-external-dns"
+
+  attach_external_dns_policy = true
+  external_dns_hosted_zone_arns   = [aws_route53_zone.xen_local.arn,data.aws_route53_zone.xen.arn]
+
+  oidc_providers = {
+    main = {
+      provider_arn               = aws_iam_openid_connect_provider.eks.arn
+      namespace_service_accounts = ["network:external-dns"]
+    }
+  }
+
+}
