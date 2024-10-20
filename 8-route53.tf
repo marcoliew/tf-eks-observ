@@ -17,18 +17,79 @@ resource "aws_route53_zone" "xen_local" {
   }
 }
 
-resource "aws_route53_record" "alias_apex_record" {
+# ===
+# data "kubernetes_service" "istio_ingress" {
+#   #count = module.eks_blueprints_addons.ingress_nginx?1:0
+#   metadata {
+#     name = helm_release.gateway.name # "${helm_release.external_nginx.metadata[0].name}-ingress-nginx-controller"
+#     namespace = helm_release.gateway.namespace
+#   }
+# }
+
+# # # For output NLB name
+
+# data "aws_lb" "istio_nlb" {
+#   #count = kubernetes_service.ingress-nginx[0]?1:0
+#   name = substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32)
+#   #name = "${local.env}-${local.eks_name}-external-ingress"
+#   #depends_on = [module.eks_blueprints_addons]
+# }
+
+# output "nlb" {
+#   value = data.aws_lb.istio_nlb.name  #substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32)
+# }
+
+
+resource "aws_route53_record" "alias_api_record" {
   zone_id = data.aws_route53_zone.xen.zone_id # Replace with your zone ID
-  name    = local.domain_name # Replace with your name/domain/subdomain
+  name    = "api.${local.domain_name}"  # Replace with your name/domain/subdomain
   type    = "A"
 
   alias {
-    name                   = data.aws_lb.istio_nlb.dns_name #substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32) #"k8s-ingress-external-7a4ba4b859-2e928abf1840765c.elb.ap-southeast-2.amazonaws.com"
-    zone_id                = data.aws_lb.istio_nlb.zone_id 
+    name                   = data.aws_lb.gateway_nlb.dns_name #substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32) #"k8s-ingress-external-7a4ba4b859-2e928abf1840765c.elb.ap-southeast-2.amazonaws.com"
+    zone_id                = data.aws_lb.gateway_nlb.zone_id 
     evaluate_target_health = false
   }
   
 }
+
+# ===
+
+data "kubernetes_service" "istio_gateway" {
+  #count = module.eks_blueprints_addons.ingress_nginx?1:0
+  metadata {
+    name = "istio-external-istio"
+    namespace = "gateway"
+  }
+}
+
+# # For output NLB name
+
+data "aws_lb" "gateway_nlb" {
+  #count = kubernetes_service.ingress-nginx[0]?1:0
+  name = substr(data.kubernetes_service.istio_gateway.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_gateway.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32)
+  #name = "${local.env}-${local.eks_name}-external-ingress"
+  #depends_on = [module.eks_blueprints_addons]
+}
+
+output "gateway_nlb" {
+  value = data.aws_lb.gateway_nlb.name  #substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32)
+}
+
+
+resource "aws_route53_record" "alias_apiv2_record" {
+  zone_id = data.aws_route53_zone.xen.zone_id # Replace with your zone ID
+  name    = "apiv2.${local.domain_name}"  # Replace with your name/domain/subdomain
+  type    = "A"
+
+  alias {
+    name                   = data.aws_lb.gateway_nlb.dns_name #substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,0,substr(data.kubernetes_service.istio_ingress.status[0].load_balancer[0].ingress[0].hostname,31,1)=="-"?31:32) #"k8s-ingress-external-7a4ba4b859-2e928abf1840765c.elb.ap-southeast-2.amazonaws.com"
+    zone_id                = data.aws_lb.gateway_nlb.zone_id 
+    evaluate_target_health = false
+  }
+  
+}
+
 
 
 # resource "aws_route53_record" "dev-ns" {

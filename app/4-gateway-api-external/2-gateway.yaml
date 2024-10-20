@@ -1,0 +1,61 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: istio-external
+  namespace: gateway
+  annotations:
+    # Cert Manager specific: only if you automaticly issue certificate
+    # when readt, switch to production-cluster-issuer
+    cert-manager.io/cluster-issuer: dns-01-production # production-cluster-issuer #  # 
+    # AWS specific: upgrade classic LB to Network Load Balancer
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    # AWS specific: provision private load balancer
+    # service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    # external-dns.alpha.kubernetes.io/hostname: echo.xeniumsolution.local
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: default
+    hostname: "*.xeniumsolution.online"
+    port: 80 # requred for letsencrypt
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All # requred for letsencrypt
+  - name: apiv2-https
+    protocol: HTTPS # Other possible value is `TLS`
+    port: 443
+    hostname: "apiv2.xeniumsolution.online"
+    tls:
+      mode: Terminate # If protocol is `TLS`, `Passthrough` is a possible mode
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: apiv2-xeniumsolution-online-cert
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: api-https
+    protocol: HTTPS # Other possible value is `TLS`
+    port: 443
+    hostname: "api.xeniumsolution.online"
+    tls:
+      mode: Terminate # If protocol is `TLS`, `Passthrough` is a possible mode
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: api-xeniumsolution-online-cert
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: wildcard-https
+    protocol: HTTPS
+    port: 443
+    hostname: "*.xeniumsolution.online"
+    tls:
+      certificateRefs:
+      - kind: Secret
+        group: ""
+        name: wildcard-xeniumsolution-online-cert

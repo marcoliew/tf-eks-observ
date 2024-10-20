@@ -1,0 +1,1 @@
+aws eks update-kubeconfig --name dev-obsv --user-alias installadmin

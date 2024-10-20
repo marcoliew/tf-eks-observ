@@ -104,7 +104,7 @@ resource "helm_release" "gateway" {
 
   set {
     name  = "service.type"
-    value = "LoadBalancer"
+    value = "None"
   }
 
   set {
@@ -136,7 +136,7 @@ resource "helm_release" "aws_lbc" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  #version    = "1.7.2"
+  version    = "1.9.1"
 
   set {
     name  = "clusterName"
@@ -163,10 +163,11 @@ resource "helm_release" "cert_manager" {
   chart            = "cert-manager"
   namespace        = "cert-manager"
   create_namespace = true
-  version          = "v1.15.3"
+  #version          = "1.14.7"  # "1.16.1"
+  values = [file("${path.module}/values/cert-manager.yaml")]  
 
   set {
-    name  = "installCRDs"
+    name  = "crds.enabled"
     value = "true"
   }
 
@@ -181,6 +182,10 @@ resource "helm_release" "cert_manager" {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = aws_iam_role.dns_manager.arn
   }
+
+  # --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
+  # --set config.kind="ControllerConfiguration" \
+  # --set config.enableGatewayAPI=true
 
   # provisioner "local-exec" {
   #   command = "cat app/3-example/8-issuer-production.yaml | envsubst | kubectl apply -f-"

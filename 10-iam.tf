@@ -15,7 +15,7 @@ data "aws_iam_policy_document" "dns_manager" {
 }
 
 resource "aws_iam_role" "dns_manager" {
-  name               = "${aws_eks_cluster.eks.name}-dns_manager"
+  name               = "${aws_eks_cluster.eks.name}-dns-manager"
   assume_role_policy = data.aws_iam_policy_document.dns_manager.json
 }
 
